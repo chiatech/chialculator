@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⏱️ Chialculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  /* ===== THEMES ===== */
+  :root, [data-theme="dark"] {
+    --bg: #0d0d0d;
+    --bg2: #111111;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --border2: #333;
+    --accent: #e52222;
+    --accent-dim: rgba(229,34,34,0.12);
+    --accent-glow: rgba(229,34,34,0.25);
+    --accent2: #ff4444;
+    --text: #f0f0f0;
+    --text-muted: #666;
+    --text-soft: #999;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #e52222;
+    --card-glow: 0 8px 32px rgba(229,34,34,0.12);
+    --tick-color: rgba(229,34,34,0.15);
+  }
+  [data-theme="light"] {
+    --bg: #f5f5f5;
+    --bg2: #ebebeb;
+    --surface: #ffffff;
+    --surface2: #f0f0f0;
+    --border: #ddd;
+    --border2: #ccc;
+    --accent: #c41a1a;
+    --accent-dim: rgba(196,26,26,0.08);
+    --accent-glow: rgba(196,26,26,0.2);
+    --accent2: #e52222;
+    --text: #111;
+    --text-muted: #888;
+    --text-soft: #555;
+    --success: #16a34a;
+    --warning: #d97706;
+    --danger: #c41a1a;
+    --card-glow: 0 8px 32px rgba(196,26,26,0.1);
+    --tick-color: rgba(196,26,26,0.1);
+  }
+
+  /* ===== RESET ===== */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  /* ===== CLOCK TICKS BACKGROUND ===== */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, var(--tick-color) 0px, var(--tick-color) 1px, transparent 1px, transparent 60px),
+      repeating-linear-gradient(90deg, var(--tick-color) 0px, var(--tick-color) 1px, transparent 1px, transparent 60px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    padding: 1.4rem 3rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg2);
+    position: sticky; top: 0; z-index: 50;
+    gap: 1rem;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--accent) 40%, var(--accent2) 60%, transparent 100%);
+  }
+  .header-left { display: flex; align-items: center; gap: 1rem; }
+
+  /* Animated clock icon */
+  .clock-icon {
+    width: 44px; height: 44px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .clock-face {
+    width: 44px; height: 44px;
+    border: 2.5px solid var(--accent);
+    border-radius: 50%;
+    background: var(--accent-dim);
+    position: relative;
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .clock-face::before, .clock-face::after {
+    content: '';
+    position: absolute;
+    background: var(--accent);
+    transform-origin: bottom center;
+    left: 50%; bottom: 50%;
+    border-radius: 2px;
+  }
+  /* hour hand */
+  .clock-face::before {
+    width: 2px; height: 10px;
+    margin-left: -1px;
+    animation: hour-hand 43200s linear infinite;
+  }
+  /* minute hand */
+  .clock-face::after {
+    width: 1.5px; height: 14px;
+    margin-left: -0.75px;
+    animation: minute-hand 3600s linear infinite;
+  }
+  .clock-center {
+    position: absolute;
+    width: 5px; height: 5px;
+    background: var(--accent);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    box-shadow: 0 0 6px var(--accent);
+  }
+  @keyframes minute-hand { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes hour-hand   { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .header-titles h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .header-titles h1 span { color: var(--accent); }
+  .header-titles p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .header-right { display: flex; align-items: center; gap: 0.8rem; }
+
+  /* Live clock */
+  .live-clock {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  /* Theme toggle */
+  .theme-toggle {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 0.35rem 0.85rem;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-soft);
+    display: flex; align-items: center; gap: 0.4rem;
+    transition: all 0.2s;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ===== MAIN ===== */
+  main { padding: 2.5rem 3rem; max-width: 1600px; position: relative; z-index: 1; }
+
+  /* ===== UPLOAD ===== */
+  .upload-section { margin-bottom: 2.5rem; }
+  .upload-zone {
+    border: 2px dashed var(--border2);
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+  }
+  .upload-zone::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, var(--accent-dim) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-dim);
+  }
+  .upload-icon { font-size: 2.5rem; margin-bottom: 0.8rem; }
+  .upload-zone h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.3rem; }
+  .upload-zone p { font-size: 0.8rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .upload-zone input { display: none; }
+  .upload-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    border-radius: 20px;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.72rem;
+    color: var(--accent);
+    margin-top: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ===== MAPPING ===== */
+  .mapping-section {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.8rem;
+    margin-bottom: 2.5rem;
+    border-left: 3px solid var(--accent);
+  }
+  .mapping-section.visible { display: block; }
+  .mapping-section h2 {
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-bottom: 1.2rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .mapping-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .map-field label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+  .map-field label span { color: var(--accent); }
+  .map-field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.55rem 0.8rem;
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.8rem center;
+    padding-right: 2.2rem;
+  }
+  .map-field select:focus { outline: none; border-color: var(--accent); }
+
+  .btn-process {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.75rem 2rem;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 16px var(--accent-glow);
+  }
+  .btn-process:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 6px 20px var(--accent-glow); }
+  .btn-process:active { transform: translateY(0); }
+
+  /* ===== STATUS ===== */
+  .status-bar {
+    display: none;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 1.2rem;
+    background: rgba(34,197,94,0.08);
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 10px;
+    margin-bottom: 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--success);
+  }
+  .status-bar.visible { display: flex; }
+
+  /* ===== CARDS ===== */
+  .cards-section { margin-bottom: 2.5rem; }
+  .cards-section h2 {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .cards-section h2::before {
+    content: '';
+    display: inline-block;
+    width: 18px; height: 2px;
+    background: var(--accent);
+  }
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.2rem;
+  }
+
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(20px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes gauge-fill {
+    from { stroke-dashoffset: 220; }
+  }
+  @keyframes gauge-glow {
+    0%, 100% { filter: drop-shadow(0 0 3px var(--gc, #e52222)); }
+    50%       { filter: drop-shadow(0 0 8px var(--gc, #e52222)); }
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.4rem 1.5rem 1.2rem;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+    animation: card-in 0.5s cubic-bezier(.22,.68,0,1.2) both;
+    transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+  .stat-card:nth-child(1) { animation-delay: 0.05s; }
+  .stat-card:nth-child(2) { animation-delay: 0.1s; }
+  .stat-card:nth-child(3) { animation-delay: 0.15s; }
+  .stat-card:nth-child(4) { animation-delay: 0.2s; }
+  .stat-card:nth-child(5) { animation-delay: 0.25s; }
+  .stat-card:nth-child(6) { animation-delay: 0.3s; }
+  .stat-card:hover { border-color: var(--card-top, var(--accent)); box-shadow: 0 8px 32px rgba(0,0,0,0.3); transform: translateY(-2px); }
+
+  /* Scanline texture */
+  .stat-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.012) 3px, rgba(255,255,255,0.012) 4px);
+    pointer-events: none;
+  }
+  /* Top accent bar */
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-top, var(--accent));
+    box-shadow: 0 0 10px var(--card-top, var(--accent));
+  }
+
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-label {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .card-badge {
+    font-size: 0.58rem;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.06em;
+    color: var(--card-top, var(--accent));
+    background: var(--accent-dim);
+    border: 1px solid var(--card-top, var(--accent));
+    border-radius: 3px;
+    padding: 0.1rem 0.4rem;
+    opacity: 0.8;
+  }
+
+  .card-body {
+    display: flex; align-items: center; gap: 1rem;
+  }
+
+  /* SVG gauge */
+  .gauge-wrap {
+    flex-shrink: 0;
+    position: relative;
+    width: 72px; height: 72px;
+  }
+  .gauge-wrap svg { width: 72px; height: 72px; }
+  .gauge-track { fill: none; stroke: var(--border2); stroke-width: 5; }
+  .gauge-fill  {
+    fill: none;
+    stroke: var(--gc, #e52222);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-dasharray: 220;
+    stroke-dashoffset: 220;
+    transform-origin: center;
+    transform: rotate(-220deg);
+    transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);
+    animation: gauge-glow 2.5s ease-in-out infinite;
+  }
+  .gauge-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+  }
+
+  .card-info { flex: 1; min-width: 0; }
+  .card-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    color: var(--card-color, var(--text));
+  }
+  .card-sub {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Bottom progress bar */
+  .card-bar-wrap {
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .card-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--card-top, var(--accent));
+    width: 0%;
+    transition: width 1.2s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 0 6px var(--card-top, var(--accent));
+  }
+
+  /* ===== TABS ===== */
+  .tabs { display: flex; gap: 0.4rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 1.1rem;
+    color: var(--text-muted);
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.01em;
+  }
+  .tab-btn:hover { border-color: var(--accent); color: var(--text); }
+  .tab-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ===== TABLES ===== */
+  .table-section { display: none; }
+  .table-section.active { display: block; }
+  .table-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .table-header-bar {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: var(--surface2);
+  }
+  .table-header-bar h3 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+  .search-box {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    transition: border-color 0.2s;
+  }
+  .search-box:focus-within { border-color: var(--accent); }
+  .search-box input {
+    background: none; border: none;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    outline: none; width: 200px;
+  }
+  .search-box input::placeholder { color: var(--text-muted); }
+  .table-scroll { overflow-x: auto; max-height: 520px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  thead tr { background: var(--bg2); position: sticky; top: 0; z-index: 2; }
+  th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+  }
+  th:hover { color: var(--accent); }
+  td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text-soft);
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background 0.1s; }
+  tbody tr:hover td { background: var(--accent-dim); color: var(--text); }
+  td.tmp-cell { font-weight: 600; color: var(--success); }
+  td.tmp-cell.slow { color: var(--warning); }
+  td.tmp-cell.veryslow { color: var(--danger); }
+  td.dt-cell { color: var(--text); font-weight: 700; }
+
+  .avg-badge {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .avg-fast { background: rgba(34,197,94,0.1); color: var(--success); border: 1px solid rgba(34,197,94,0.2); }
+  .avg-mid  { background: rgba(245,158,11,0.1); color: var(--warning); border: 1px solid rgba(245,158,11,0.2); }
+  .avg-slow { background: rgba(229,34,34,0.1);  color: var(--danger);  border: 1px solid rgba(229,34,34,0.2); }
+
+  /* ===== PAGINATION ===== */
+  .pagination {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.8rem 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    flex-wrap: wrap; gap: 0.5rem;
+    background: var(--surface2);
+  }
+  .page-btns { display: flex; gap: 0.3rem; }
+  .page-btn {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.28rem 0.6rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    transition: all 0.15s;
+  }
+  .page-btn:hover, .page-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ===== EXPORT BTN ===== */
+  .btn-export {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    border-radius: 7px;
+    padding: 0.4rem 1rem;
+    color: var(--accent);
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .btn-export:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* ===== LOADING ===== */
+  #loading {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+  #loading.visible { display: flex; }
+  /* Spinning clock loader */
+  .clock-loader {
+    width: 56px; height: 56px;
+    border: 3px solid var(--border2);
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+  .clock-loader::before, .clock-loader::after {
+    content: '';
+    position: absolute;
+    background: var(--accent);
+    transform-origin: bottom center;
+    left: 50%; bottom: 50%;
+    border-radius: 2px;
+  }
+  .clock-loader::before { width: 2px; height: 12px; margin-left: -1px; animation: minute-hand 1.5s linear infinite; }
+  .clock-loader::after  { width: 2px; height: 8px; margin-left: -1px; animation: minute-hand 18s linear infinite; }
+  #loading p { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.08em; }
+
+  /* ===== RESULTS ===== */
+  #results { display: none; }
+  #results.visible { display: block; }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+  @media (max-width: 768px) {
+    header { padding: 1rem 1.5rem; }
+    main { padding: 1.5rem; }
+    .cards-grid { grid-template-columns: 1fr 1fr; }
+    .mapping-grid { grid-template-columns: 1fr; }
+    .live-clock { display: none; }
+  }
+
+  /* ===== INDICADORES ===== */
+  .ind-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.2rem;
+    padding: 1.5rem;
+  }
+  .ind-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .ind-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .ind-card-header {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.9rem 1.2rem;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+  }
+  .ind-card-header .ind-icon {
+    font-size: 1.1rem;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--accent-dim);
+    border-radius: 8px;
+    border: 1px solid var(--accent-glow);
+  }
+  .ind-card-header h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text);
+  }
+  .ind-card-body { padding: 0.8rem 0; }
+
+  /* Ranking rows */
+  .rank-row {
+    display: flex; align-items: center; gap: 0.8rem;
+    padding: 0.65rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-row:hover { background: var(--accent-dim); }
+  .rank-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    width: 24px; text-align: center;
+    flex-shrink: 0;
+  }
+  .rank-num.gold   { color: #f59e0b; }
+  .rank-num.silver { color: #9ca3af; }
+  .rank-num.bronze { color: #b45309; }
+  .rank-info { flex: 1; min-width: 0; }
+  .rank-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rank-sub {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rank-tmp {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .rank-tmp.red    { color: var(--danger);  border-color: rgba(229,34,34,0.3);  background: rgba(229,34,34,0.08); }
+  .rank-tmp.yellow { color: var(--warning); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+  .rank-tmp.green  { color: var(--success); border-color: rgba(34,197,94,0.3);  background: rgba(34,197,94,0.08); }
+
+  /* Single value ind card */
+  .ind-single {
+    padding: 1.2rem 1.4rem;
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .ind-single-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+  }
+  .ind-single-val.green  { color: var(--success); }
+  .ind-single-val.red    { color: var(--danger); }
+  .ind-single-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+  }
+  .ind-divider {
+    width: 1px; height: 40px;
+    background: var(--border2);
+    flex-shrink: 0;
+  }
+
+  /* ===== FILE LIST ===== */
+  .file-list {
+    display: none;
+    margin-top: 1rem;
+    gap: 0.5rem;
+    flex-direction: column;
+  }
+  .file-list.visible { display: flex; }
+  .file-item {
+    display: flex; align-items: center; gap: 0.7rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.78rem;
+    font-family: 'JetBrains Mono', monospace;
+    animation: card-in 0.3s ease both;
+  }
+  .file-item .file-name { flex: 1; color: var(--text); }
+  .file-item .file-size { color: var(--text-muted); font-size: 0.68rem; }
+  .file-item .file-status { font-size: 0.72rem; }
+  .file-item .file-remove {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; font-size: 0.8rem; padding: 0 0.2rem;
+    transition: color 0.15s;
+  }
+  .file-item .file-remove:hover { color: var(--danger); }
+  .file-add-btn {
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    background: var(--accent-dim);
+    border: 1px dashed var(--accent-glow);
+    border-radius: 8px;
+    padding: 0.5rem;
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .file-add-btn:hover { background: rgba(229,34,34,0.15); }
+
+  /* ===== FOOTER ===== */
+  footer {
+    position: relative; z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 1.2rem 3rem;
+    background: var(--bg2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.04em;
+  }
+  footer::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.3;
+  }
+  footer span.dev-name {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* ===== DATE FILTER ===== */
+  .date-filter-box {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 0.35rem 0.8rem;
+    transition: border-color 0.2s;
+  }
+  .date-filter-box:focus-within { border-color: var(--accent); }
+  .filter-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+  }
+  .date-filter-box input[type="date"] {
+    background: none; border: none;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    outline: none;
+    cursor: pointer;
+    color-scheme: dark;
+  }
+  [data-theme="light"] .date-filter-box input[type="date"] { color-scheme: light; }
+  .btn-clear-date {
+    background: none; border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0 0.2rem;
+    transition: color 0.15s;
+    line-height: 1;
+  }
+  .btn-clear-date:hover { color: var(--accent); }
+
+
+  .btn-reset {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-glow);
+    border-radius: 20px;
+    padding: 0.35rem 1rem;
+    color: var(--accent);
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+  .btn-reset:hover { background: var(--accent); color: #fff; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="clock-icon">
+      <div class="clock-face">
+        <div class="clock-center"></div>
+      </div>
+    </div>
+    <div class="header-titles">
+      <h1>Chia<span>lculator</span></h1>
+      <p>Análise de TMP e TPV</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-clock" id="liveClock">--:--:--</div>
+    <button class="btn-reset" id="btnReset" onclick="resetSite()" style="display:none">↺ Novo Arquivo</button>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙 Escuro</button>
+  </div>
+</header>
+
+<main>
+  <!-- UPLOAD -->
+  <div class="upload-section">
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.ods" multiple>
+      <div class="upload-icon">📂</div>
+      <h3>Arraste suas planilhas aqui</h3>
+      <p>ou clique para selecionar um ou mais arquivos</p>
+      <div class="upload-badge">✓ .xlsx &nbsp;✓ .xls &nbsp;✓ .csv &nbsp;✓ .ods &nbsp;✓ múltiplos arquivos</div>
+    </div>
+    <!-- File list -->
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <!-- COLUMN MAPPING -->
+  <div class="mapping-section" id="mappingSection">
+    <h2>🔧 Mapeamento de Colunas</h2>
+    <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1.2rem;font-family:'JetBrains Mono',monospace;">
+      Associe as colunas da sua planilha aos campos necessários para o cálculo do TMP.
+    </p>
+    <div class="mapping-grid">
+      <div class="map-field">
+        <label>DT — <span>Dt. Transporte</span></label>
+        <select id="col_dt"></select>
+      </div>
+      <div class="map-field">
+        <label>N° Processo — <span>Controle de Portaria</span></label>
+        <select id="col_processo"></select>
+      </div>
+      <div class="map-field">
+        <label><span>Data Registrado</span></label>
+        <select id="col_data_reg"></select>
+      </div>
+      <div class="map-field">
+        <label><span>Hora Registrado</span></label>
+        <select id="col_hora_reg"></select>
+      </div>
+      <div class="map-field">
+        <label><span>Data Veículo Liberado</span></label>
+        <select id="col_data_lib"></select>
+      </div>
+      <div class="map-field">
+        <label><span>Hora Veículo Liberado</span></label>
+        <select id="col_hora_lib"></select>
+      </div>
+      <div class="map-field">
+        <label>Nome Transportadora <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_transp"></select>
+      </div>
+      <div class="map-field">
+        <label>Operação <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_operacao"></select>
+      </div>
+      <div class="map-field">
+        <label>Data Início Descarregamento <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_di_desc"></select>
+      </div>
+      <div class="map-field">
+        <label>Hora Início Descarregamento <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_hi_desc"></select>
+      </div>
+      <div class="map-field">
+        <label>Data Fim Descarregamento <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_df_desc"></select>
+      </div>
+      <div class="map-field">
+        <label>Hora Fim Descarregamento <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_hf_desc"></select>
+      </div>
+      <div class="map-field">
+        <label>Data Início Carregamento <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_di_carr"></select>
+      </div>
+      <div class="map-field">
+        <label>Hora Início Carregamento <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_hi_carr"></select>
+      </div>
+      <div class="map-field">
+        <label>Data Fim Carregamento <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_df_carr"></select>
+      </div>
+      <div class="map-field">
+        <label>Hora Fim Carregamento <span style="color:var(--text-muted)">(opcional)</span></label>
+        <select id="col_hf_carr"></select>
+      </div>
+    </div>
+    <button class="btn-process" id="btnProcess">⚡ Calcular TMP</button>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-bar" id="statusBar"></div>
+
+  <!-- RESULTS -->
+  <div id="results">
+    <!-- CARDS -->
+    <div class="cards-section" id="cardsSection">
+      <h2>⏱️ TMP — Tempo Médio de Permanência</h2>
+      <div class="cards-grid" id="cardsGridTMP"></div>
+      <h2 style="margin-top:1.8rem">🏭 TPV — Tempo de Processo de Veículo</h2>
+      <div class="cards-grid" id="cardsGridTPV" style="display:none"></div>
+      <p id="tpvEmptyMsg" style="display:none;font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:var(--text-muted);margin-top:0.5rem">
+        Mapeie as colunas de Operação e Início/Fim de Descarregamento ou Carregamento para calcular o TPV.
+      </p>
+    </div>
+
+    <!-- TABS + TABLES -->
+    <div>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-registros">📋 Registros</button>
+        <button class="tab-btn" data-tab="tab-diario">📅 Média Diária</button>
+        <button class="tab-btn" data-tab="tab-semanal">📆 Média Semanal</button>
+        <button class="tab-btn" data-tab="tab-mensal">🗓️ Média Mensal</button>
+        <button class="tab-btn" data-tab="tab-indicadores">🏆 Indicadores</button>
+      </div>
+
+      <!-- TAB: REGISTROS -->
+      <div class="table-section active" id="tab-registros">
+        <div class="table-wrapper">
+          <div class="table-header-bar">
+            <h3>Registros com TMP calculado</h3>
+            <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn-export" onclick="exportarRegistros()">⬇️ Exportar XLSX</button>
+              <div class="date-filter-box">
+                <span class="filter-label">📅 De</span>
+                <input type="date" id="filterDateFrom" onchange="applyFilters()">
+                <span class="filter-label">até</span>
+                <input type="date" id="filterDateTo" onchange="applyFilters()">
+                <button class="btn-clear-date" onclick="clearDateFilter()" title="Limpar filtro de data">✕</button>
+              </div>
+              <div class="search-box">
+              <span>🔍</span>
+              <input type="text" id="searchInput" placeholder="Buscar DT, processo ou transportadora..." oninput="applyFilters()">
+            </div>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table id="tableRegistros">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('tableRegistros',0)">DT ↕</th>
+                  <th onclick="sortTable('tableRegistros',1)">N° Processo ↕</th>
+                  <th onclick="sortTable('tableRegistros',2)">Transportadora ↕</th>
+                  <th onclick="sortTable('tableRegistros',3)">Operação ↕</th>
+                  <th onclick="sortTable('tableRegistros',4)">Data Registrado ↕</th>
+                  <th onclick="sortTable('tableRegistros',5)">Hora Registrado</th>
+                  <th onclick="sortTable('tableRegistros',6)">Data Liberado ↕</th>
+                  <th onclick="sortTable('tableRegistros',7)">Hora Liberado</th>
+                  <th onclick="sortTable('tableRegistros',8)">TMP ↕</th>
+                  <th onclick="sortTable('tableRegistros',9)">TPV ↕</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyRegistros"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="paginationReg"></div>
+        </div>
+      </div>
+
+      <!-- TAB: DIARIO -->
+      <div class="table-section" id="tab-diario">
+        <div class="table-wrapper">
+          <div class="table-header-bar">
+            <h3>Média Diária do TMP</h3>
+            <button class="btn-export" onclick="exportarDiario()">⬇️ Exportar XLSX</button>
+          </div>
+          <div class="table-scroll">
+            <table id="tableDiario">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('tableDiario',0)">Data ↕</th>
+                  <th onclick="sortTable('tableDiario',1)">Qtd. Registros ↕</th>
+                  <th onclick="sortTable('tableDiario',2)">TMP Médio ↕</th>
+                  <th onclick="sortTable('tableDiario',3)">TMP Mín.</th>
+                  <th onclick="sortTable('tableDiario',4)">TMP Máx.</th>
+                  <th onclick="sortTable('tableDiario',5)">TPV Médio ↕</th>
+                  <th onclick="sortTable('tableDiario',6)">Reg. c/ TPV</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyDiario"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: SEMANAL -->
+      <div class="table-section" id="tab-semanal">
+        <div class="table-wrapper">
+          <div class="table-header-bar">
+            <h3>Semana X do Ano X</h3>
+          </div>
+          <div class="table-scroll">
+            <table id="tableSemanal">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('tableSemanal',0)">Semana ↕</th>
+                  <th onclick="sortTable('tableSemanal',1)">Qtd. Registros ↕</th>
+                  <th onclick="sortTable('tableSemanal',2)">TMP Médio ↕</th>
+                  <th onclick="sortTable('tableSemanal',3)">TPV Médio ↕</th>
+                  <th onclick="sortTable('tableSemanal',4)">Reg. c/ TPV</th>
+                </tr>
+              </thead>
+              <tbody id="tbodySemanal"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: MENSAL -->
+      <div class="table-section" id="tab-mensal">
+        <div class="table-wrapper">
+          <div class="table-header-bar">
+            <h3>Média do TMP por Mês</h3>
+          </div>
+          <div class="table-scroll">
+            <table id="tableMensal">
+              <thead>
+                <tr>
+                  <th onclick="sortTable('tableMensal',0)">Mês ↕</th>
+                  <th onclick="sortTable('tableMensal',1)">Qtd. Registros ↕</th>
+                  <th onclick="sortTable('tableMensal',2)">TMP Médio ↕</th>
+                  <th onclick="sortTable('tableMensal',3)">TPV Médio ↕</th>
+                  <th onclick="sortTable('tableMensal',4)">Reg. c/ TPV</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyMensal"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- TAB: INDICADORES -->
+      <div class="table-section" id="tab-indicadores">
+        <div id="indicadores-content"></div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="clock-loader"></div>
+  <p>PROCESSANDO PLANILHA...</p>
+</div>
+
+<script>
+// ===================== ESTADO =====================
+let allRows = [];
+let processedRows = [];
+let filteredRows = [];
+let currentPage = 1;
+const PAGE_SIZE = 50;
+let sortDir = {};
+let headers = [];
+let rawData = [];
+let loadedFiles = []; // { name, size, data (raw rows) }
+
+// ===================== UPLOAD =====================
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) addFiles(Array.from(e.dataTransfer.files));
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) addFiles(Array.from(fileInput.files));
+  fileInput.value = '';
+});
+
+function fmtFileSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+function renderFileList() {
+  const fl = document.getElementById('fileList');
+  if (!loadedFiles.length) { fl.classList.remove('visible'); return; }
+  fl.classList.add('visible');
+  fl.innerHTML = loadedFiles.map((f, i) => `
+    <div class="file-item">
+      <span>📄</span>
+      <span class="file-name">${f.name}</span>
+      <span class="file-size">${fmtFileSize(f.size)} · ${f.rowCount} linhas</span>
+      <span class="file-status">✅</span>
+      <button class="file-remove" onclick="removeFile(${i})" title="Remover">✕</button>
+    </div>
+  `).join('') + `
+    <div class="file-add-btn" onclick="document.getElementById('fileInput').click()">
+      ＋ Adicionar outra planilha
+    </div>`;
+}
+
+function removeFile(idx) {
+  loadedFiles.splice(idx, 1);
+  if (!loadedFiles.length) {
+    rawData = [];
+    headers = [];
+    document.getElementById('mappingSection').classList.remove('visible');
+  } else {
+    mergeRawData();
+  }
+  renderFileList();
+}
+
+function mergeRawData() {
+  // Build unified header list (union of all files' headers, preserving order)
+  const headerSet = [];
+  const headerIndex = {};
+  loadedFiles.forEach(f => {
+    f.headers.forEach(h => {
+      if (!(h in headerIndex)) {
+        headerIndex[h] = headerSet.length;
+        headerSet.push(h);
+      }
+    });
+  });
+  headers = headerSet;
+
+  // Remap every file's rows to the unified header order
+  rawData = loadedFiles.flatMap(f => {
+    // Map: unified col index → this file's col index
+    const colMap = headerSet.map(h => f.headers.indexOf(h)); // -1 if absent
+    return f.rows.map(row => {
+      return colMap.map(srcIdx => srcIdx >= 0 ? row[srcIdx] : '');
+    });
+  });
+
+  populateSelects(headers);
+  autoDetect(headers);
+  document.getElementById('mappingSection').classList.add('visible');
+}
+
+function addFiles(files) {
+  showLoading(true);
+  let pending = files.length;
+  files.forEach(file => {
+    readFileAsync(file).then(result => {
+      // Deduplicate by filename
+      if (!loadedFiles.find(f => f.name === file.name)) {
+        loadedFiles.push({ name: file.name, size: file.size, headers: result.headers, rows: result.rows, rowCount: result.rows.length });
+      }
+      pending--;
+      if (pending === 0) {
+        mergeRawData();
+        renderFileList();
+        showLoading(false);
+      }
+    }).catch(err => {
+      console.error('readFileAsync error:', err);
+      alert('Erro ao ler ' + file.name + ': ' + err.message);
+      pending--;
+      if (pending === 0) showLoading(false);
+    });
+  });
+}
+
+function readFileAsync(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const ext = file.name.split('.').pop().toLowerCase();
+    reader.onload = function(e) {
+      try {
+        let wb;
+        if (ext === 'csv') {
+          wb = XLSX.read(e.target.result, { type: 'string', raw: true });
+        } else {
+          wb = XLSX.read(e.target.result, { type: 'array', cellDates: false, raw: true });
+        }
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: true });
+        if (json.length < 2) { reject(new Error('Planilha vazia ou inválida')); return; }
+        const hdrs = json[0].map(h => String(h).trim());
+        const rows = json.slice(1).filter(r => r.some(c => c !== ''));
+        resolve({ headers: hdrs, rows });
+      } catch(err) { reject(err); }
+    };
+    if (ext === 'csv') reader.readAsText(file, 'UTF-8');
+    else reader.readAsArrayBuffer(file);
+  });
+}
+
+function populateSelects(cols) {
+  const selects = ['col_dt','col_processo','col_data_reg','col_hora_reg','col_data_lib','col_hora_lib','col_transp','col_operacao','col_di_desc','col_hi_desc','col_df_desc','col_hf_desc','col_di_carr','col_hi_carr','col_df_carr','col_hf_carr'];
+  const options = ['— Selecione —', ...cols];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = options.map((c,i) => `<option value="${i-1}">${c}</option>`).join('');
+  });
+}
+
+function autoDetect(cols) {
+  // normaliza: minúsculas, sem acento, sem espaços
+  const lower = cols.map(c => c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,''));
+  const map = {
+    col_dt:       ['dt.transporte','dttransporte'],
+    col_processo: ['nprocesso','n°processo','controle','portaria','processo'],
+    col_data_reg: ['dataregistrado','dtregistrado','datareg'],
+    col_hora_reg: ['horaregistrado','horareg'],
+    col_data_lib: ['dataveiculoliberado','dataveiculo','datavehiculo','dataliberado','datalib'],
+    col_hora_lib: ['horaveiculoliberado','horaveiculo','horavehiculo','horaliberado','horalib'],
+    col_transp:    ['nometransportadora','nometransport','transportadoranome','transportadora'],
+    col_operacao:  ['operacao','operação','op'],
+    col_di_desc:   ['datainiciodescarregamento','datainiciodescarga','iniciodesc'],
+    col_hi_desc:   ['horainiciodescarregamento','horainiciodescarga'],
+    col_df_desc:   ['datafimdescarregamento','datafimdescarga','fimdesc'],
+    col_hf_desc:   ['horafimdescarregamento','horafimdescarga'],
+    col_di_carr:   ['datainiciocarregamento','iniciocarre'],
+    col_hi_carr:   ['horainiciocarregamento'],
+    col_df_carr:   ['datafimcarregamento','fimcarre'],
+    col_hf_carr:   ['horafimcarregamento'],
+  };
+
+  // Para cada campo, busca match EXATO primeiro, depois parcial
+  const findCol = (keywords) => {
+    // Exact match first
+    let idx = lower.findIndex(h => keywords.some(k => h === k));
+    if (idx >= 0) return idx;
+    // Partial match
+    return lower.findIndex(h => keywords.some(k => h.includes(k)));
+  };
+  Object.entries(map).forEach(([id, keywords]) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const found = findCol(keywords);
+    if (found >= 0) sel.value = found;
+  });
+}
+
+// ===================== PROCESS =====================
+document.getElementById('btnProcess').addEventListener('click', processData);
+
+function getColIdx(id) { const el = document.getElementById(id); return el ? parseInt(el.value) : -1; }
+
+function parseDateTime(dateStr, timeStr) {
+  // Try to parse various date/time formats
+  if (!dateStr && !timeStr) return null;
+  let ds = String(dateStr).trim();
+  let ts = String(timeStr).trim();
+
+  // Handle date
+  let d = null;
+  let m;
+  const rawNum = Number(ds.replace(/\..*/, '')); // inteiro do valor
+
+  // Excel serial date (4-5 dígitos, ex: 46100 ou 46100.647) — usa só a parte inteira
+  if (!isNaN(rawNum) && ds.match(/^\d{4,5}(\.\d+)?$/) && rawNum < 60000) {
+    const intSerial = Math.floor(rawNum); // ignora fração de hora
+    const excelEpoch = new Date(1899, 11, 30); // 30/12/1899
+    d = new Date(excelEpoch.getTime() + intSerial * 86400000);
+  }
+  // YYYYMMDD (8 dígitos sem separador, ex: 20260319)
+  if (!d) { m = ds.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (m) d = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+  }
+  // DD/MM/YYYY or DD-MM-YYYY
+  if (!d) { m = ds.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+    if (m) { let y = parseInt(m[3]); if (y < 100) y += 2000; d = new Date(y, parseInt(m[2])-1, parseInt(m[1])); }
+  }
+  // YYYY-MM-DD
+  if (!d) { m = ds.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/); if(m) d = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3])); }
+  // Fallback: JS Date.parse
+  if (!d && ds && !isNaN(Date.parse(ds))) d = new Date(ds);
+
+  if (!d || isNaN(d)) return null;
+
+  // Handle time
+  let hours = 0, minutes = 0, seconds = 0;
+  if (ts) {
+    const tsNum = parseFloat(ts);
+    // Excel fractional time (ex: 0.4375 = 10:30:00)
+    if (!isNaN(tsNum) && tsNum >= 0 && tsNum < 1 && ts.includes('.')) {
+      const totalSec = Math.round(tsNum * 86400);
+      hours   = Math.floor(totalSec / 3600);
+      minutes = Math.floor((totalSec % 3600) / 60);
+      seconds = totalSec % 60;
+    }
+    // HHMMSS sem separador (ex: 100534 → 10:05:34, 064748 → 06:47:48)
+    else {
+      let tm = ts.match(/^(\d{2})(\d{2})(\d{2})$/);
+      if (tm) {
+        hours = parseInt(tm[1]); minutes = parseInt(tm[2]); seconds = parseInt(tm[3]);
+      } else {
+        // Remove AM/PM
+        let ampm = ts.match(/([ap]m)/i);
+        ts = ts.replace(/\s*[ap]m/i,'').trim();
+        tm = ts.match(/(\d{1,2})[:\.](\d{2})(?:[:\.](\d{2}))?/);
+        if (tm) {
+          hours = parseInt(tm[1]); minutes = parseInt(tm[2]); seconds = tm[3] ? parseInt(tm[3]) : 0;
+          if (ampm) {
+            if (ampm[1].toLowerCase() === 'pm' && hours < 12) hours += 12;
+            if (ampm[1].toLowerCase() === 'am' && hours === 12) hours = 0;
+          }
+        }
+      }
+    }
+  }
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), hours, minutes, seconds);
+}
+
+function formatTMP(ms, precise = false) {
+  if (ms < 0 || isNaN(ms)) return '—';
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (precise) {
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${m}:${String(s).padStart(2,'0')}`;
+  }
+  if (h > 0) return `${h}h ${String(m).padStart(2,'0')}min`;
+  return `${m}min`;
+}
+
+function tmpClass(ms) {
+  const h = ms / 3600000;
+  if (h >= 24) return 'veryslow';
+  if (h >= 6)  return 'slow';
+  return '';
+}
+
+function getWeekNumber(d) {
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() + 4 - day);
+  const yearStart = new Date(date.getFullYear(), 0, 1);
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+
+function processData() {
+  const idxDT       = getColIdx('col_dt');
+  const idxProc     = getColIdx('col_processo');
+  const idxTransp   = getColIdx('col_transp');
+  const idxOperacao = getColIdx('col_operacao');
+  const idxDiDesc   = getColIdx('col_di_desc');
+  const idxHiDesc   = getColIdx('col_hi_desc');
+  const idxDfDesc   = getColIdx('col_df_desc');
+  const idxHfDesc   = getColIdx('col_hf_desc');
+  const idxDiCarr   = getColIdx('col_di_carr');
+  const idxHiCarr   = getColIdx('col_hi_carr');
+  const idxDfCarr   = getColIdx('col_df_carr');
+  const idxHfCarr   = getColIdx('col_hf_carr');
+  const idxDR = getColIdx('col_data_reg');
+  const idxHR = getColIdx('col_hora_reg');
+  const idxDL = getColIdx('col_data_lib');
+  const idxHL = getColIdx('col_hora_lib');
+
+  const required = [idxDR, idxHR, idxDL, idxHL];
+  if (required.some(i => i < 0)) { alert('Por favor, selecione ao menos as colunas de Data/Hora Registrado e Data/Hora Liberado.'); return; }
+
+  showLoading(true);
+  setTimeout(() => {
+    processedRows = [];
+    let skipped = 0;
+
+    rawData.forEach((row, ri) => {
+      const dt = idxDT >= 0 ? String(row[idxDT] ?? '').trim() : `Linha ${ri+2}`;
+      const proc = idxProc >= 0 ? String(row[idxProc] ?? '').trim() : '';
+      const transp   = idxTransp   >= 0 ? String(row[idxTransp]   ?? '').trim() : '';
+      const operacao = idxOperacao >= 0 ? String(row[idxOperacao] ?? '').trim() : '';
+
+      // TPV calculation based on Operação
+      let tpvMs = null;
+      let tpvTipo = '';
+      const op = operacao.toLowerCase();
+      if (op.includes('01') || op.includes('entrada')) {
+        // Descarga
+        const dtIni = parseDateTime(row[idxDiDesc] ?? '', row[idxHiDesc] ?? '');
+        const dtFim = parseDateTime(row[idxDfDesc] ?? '', row[idxHfDesc] ?? '');
+        if (dtIni && dtFim && dtFim >= dtIni) { tpvMs = dtFim - dtIni; tpvTipo = 'Descarga'; }
+      } else if (op.includes('02') || op.includes('saída') || op.includes('saida')) {
+        // Carregamento
+        const dtIni = parseDateTime(row[idxDiCarr] ?? '', row[idxHiCarr] ?? '');
+        const dtFim = parseDateTime(row[idxDfCarr] ?? '', row[idxHfCarr] ?? '');
+        if (dtIni && dtFim && dtFim >= dtIni) { tpvMs = dtFim - dtIni; tpvTipo = 'Carregamento'; }
+      }
+      const dtReg = parseDateTime(row[idxDR], row[idxHR]);
+      const dtLib = parseDateTime(row[idxDL], row[idxHL]);
+
+      if (!dtReg || !dtLib) { skipped++; return; }
+      const tmpMs = dtLib - dtReg;
+      if (tmpMs < 0) { skipped++; return; }
+
+      processedRows.push({ dt, proc, transp, operacao, tpvMs, tpvTipo, dtReg, dtLib, tmpMs,
+        dataRegStr: row[idxDR], horaRegStr: row[idxHR],
+        dataLibStr: row[idxDL], horaLibStr: row[idxHL]
+      });
+    });
+
+    filteredRows = [...processedRows];
+    buildCards();
+    buildTableRegistros();
+    buildTableDiario();
+    buildTableSemanal();
+    buildTableMensal();
+    buildIndicadores();
+
+    // Deduplicate by N° Processo (keep first occurrence)
+    const seenProc = new Set();
+    const beforeDedup = processedRows.length;
+    processedRows = processedRows.filter(r => {
+      if (!r.proc) return true; // no process number, always keep
+      if (seenProc.has(r.proc)) return false;
+      seenProc.add(r.proc);
+      return true;
+    });
+    const dupRemoved = beforeDedup - processedRows.length;
+
+    document.getElementById('results').classList.add('visible');
+    document.getElementById('btnReset').style.display = '';
+    showStatus(`✓ ${processedRows.length} registros processados de ${loadedFiles.length} arquivo${loadedFiles.length!==1?'s':''}${dupRemoved > 0 ? ` — ${dupRemoved} duplicata${dupRemoved!==1?'s':''} removida${dupRemoved!==1?'s':''}` : ''}${skipped > 0 ? ` — ${skipped} ignorado${skipped!==1?'s':''}` : ''}`);
+    showLoading(false);
+  }, 50);
+}
+
+// ===================== CARDS =====================
+function buildCards() {
+  const grid = document.getElementById('cardsGridTMP');
+  const gridTPV = document.getElementById('cardsGridTPV');
+  if (!processedRows.length) { grid.innerHTML = ''; return; }
+
+  const totalTmp = processedRows.reduce((s,r) => s+r.tmpMs, 0);
+  const avgGeral = totalTmp / processedRows.length;
+  const maxTmp = Math.max(...processedRows.map(r=>r.tmpMs));
+  const minTmp = Math.min(...processedRows.map(r=>r.tmpMs));
+
+  // Unique DTs
+  const dts = [...new Set(processedRows.map(r=>r.dt).filter(v => v && v.trim() !== '' && v !== 'undefined' && v !== 'null'))];
+
+  // Days
+  const dias = [...new Set(processedRows.map(r => localDateKey(r.dtLib)))];
+
+  // Avg per day (across all)
+  const byDay = {};
+  processedRows.forEach(r => {
+    const dk = localDateKey(r.dtLib);
+    if (!byDay[dk]) byDay[dk] = [];
+    byDay[dk].push(r.tmpMs);
+  });
+  const dayAvgs = Object.values(byDay).map(arr => arr.reduce((s,v)=>s+v,0)/arr.length);
+  const avgDiaria = dayAvgs.reduce((s,v)=>s+v,0)/dayAvgs.length;
+
+  // Avg per week
+  const byWeek = {};
+  processedRows.forEach(r => {
+    const wk = `${r.dtLib.getFullYear()}-W${String(getWeekNumber(r.dtLib)).padStart(2,'0')}`;
+    if (!byWeek[wk]) byWeek[wk] = [];
+    byWeek[wk].push(r.tmpMs);
+  });
+  const weekAvgs = Object.values(byWeek).map(arr => arr.reduce((s,v)=>s+v,0)/arr.length);
+  const avgSemanal = weekAvgs.reduce((s,v)=>s+v,0)/weekAvgs.length;
+
+  // Avg per month
+  const byMonth = {};
+  processedRows.forEach(r => {
+    const mk = `${r.dtLib.getFullYear()}-${String(r.dtLib.getMonth()+1).padStart(2,'0')}`;
+    if (!byMonth[mk]) byMonth[mk] = [];
+    byMonth[mk].push(r.tmpMs);
+  });
+  const monthAvgs = Object.values(byMonth).map(arr => arr.reduce((s,v)=>s+v,0)/arr.length);
+  const avgMensal = monthAvgs.reduce((s,v)=>s+v,0)/monthAvgs.length;
+
+  // TPV averages
+  const tpvRows = processedRows.filter(r => r.tpvMs !== null);
+  const tpvByWeek = {};
+  const tpvByMonth = {};
+  tpvRows.forEach(r => {
+    const wk = `${r.dtLib.getFullYear()}-W${String(getWeekNumber(r.dtLib)).padStart(2,'0')}`;
+    const mk = `${r.dtLib.getFullYear()}-${String(r.dtLib.getMonth()+1).padStart(2,'0')}`;
+    if (!tpvByWeek[wk])   tpvByWeek[wk]   = [];
+    if (!tpvByMonth[mk])  tpvByMonth[mk]  = [];
+    tpvByWeek[wk].push(r.tpvMs);
+    tpvByMonth[mk].push(r.tpvMs);
+  });
+  const tpvWeekAvgs  = Object.values(tpvByWeek).map(a => a.reduce((s,v)=>s+v,0)/a.length);
+  const tpvMonthAvgs = Object.values(tpvByMonth).map(a => a.reduce((s,v)=>s+v,0)/a.length);
+  const avgTpvSemanal = tpvWeekAvgs.length  ? tpvWeekAvgs.reduce((s,v)=>s+v,0)/tpvWeekAvgs.length   : null;
+  const avgTpvMensal  = tpvMonthAvgs.length ? tpvMonthAvgs.reduce((s,v)=>s+v,0)/tpvMonthAvgs.length : null;
+
+  // helpers for gauge %
+  const tmpPct  = (ms) => Math.min(100, Math.round((ms / (24 * 3600000)) * 100));
+  const countPct = (n, total) => total > 0 ? Math.min(100, Math.round((n / total) * 100)) : 0;
+
+  const cardsTMP = [
+    { label: 'Total de DTs',      value: dts.length,          sub: dts.slice(0,3).join(', ') + (dts.length > 3 ? ` +${dts.length-3}` : ''), icon: '🚚', color: '#a78bfa', accent: '#a78bfa', pct: countPct(dts.length, 30), badgeLabel: 'DTs' },
+    { label: 'TMP Mensal',        value: formatTMP(avgMensal), sub: `Média · ${monthAvgs.length} ${monthAvgs.length===1?'mês':'meses'}`,          icon: '🗓️', color: 'var(--accent)', accent: 'var(--accent)', pct: tmpPct(avgMensal), badgeLabel: 'MENSAL' },
+    { label: 'TMP Semanal',       value: formatTMP(avgSemanal),sub: `Média · ${weekAvgs.length} ${weekAvgs.length===1?'semana':'semanas'}`,        icon: '📆', color: '#f59e0b', accent: '#f59e0b', pct: tmpPct(avgSemanal), badgeLabel: 'SEMANAL' },
+    { label: 'Dias Apurados',     value: dias.length,          sub: 'Por Data Veículo Liberado',                                                   icon: '📅', color: '#10b981', accent: '#10b981', pct: countPct(dias.length, 31), badgeLabel: 'DIAS' },
+    { label: 'Menor Permanência', value: formatTMP(minTmp),    sub: 'TMP mínimo registrado',                                                       icon: '🔻', color: '#10b981', accent: '#10b981', pct: tmpPct(minTmp), badgeLabel: 'MÍN' },
+    { label: 'Maior Permanência', value: formatTMP(maxTmp),    sub: 'TMP máximo registrado',                                                       icon: '🔺', color: '#ef4444', accent: '#ef4444', pct: tmpPct(maxTmp), badgeLabel: 'MÁX' },
+  ];
+
+  const cardsTPV = [
+    ...(avgTpvSemanal !== null ? [{ label: 'TPV Semanal', value: formatTMP(avgTpvSemanal), sub: `Média · ${tpvWeekAvgs.length} ${tpvWeekAvgs.length===1?'semana':'semanas'} · ${tpvRows.length} reg.`, icon: '⏳', color: '#38bdf8', accent: '#38bdf8', pct: tmpPct(avgTpvSemanal), badgeLabel: 'SEMANAL' }] : []),
+    ...(avgTpvMensal  !== null ? [{ label: 'TPV Mensal',  value: formatTMP(avgTpvMensal),  sub: `Média · ${tpvMonthAvgs.length} ${tpvMonthAvgs.length===1?'mês':'meses'} · ${tpvRows.length} reg.`,   icon: '⏳', color: '#818cf8', accent: '#818cf8', pct: tmpPct(avgTpvMensal),  badgeLabel: 'MENSAL'  }] : []),
+    ...(tpvRows.length ? [{
+      label: 'Menor TPV', value: formatTMP(Math.min(...tpvRows.map(r=>r.tpvMs))),
+      sub: 'TPV mínimo registrado', icon: '🔻', color: '#10b981', accent: '#10b981',
+      pct: tmpPct(Math.min(...tpvRows.map(r=>r.tpvMs))), badgeLabel: 'MÍN'
+    }, {
+      label: 'Maior TPV', value: formatTMP(Math.max(...tpvRows.map(r=>r.tpvMs))),
+      sub: 'TPV máximo registrado', icon: '🔺', color: '#ef4444', accent: '#ef4444',
+      pct: tmpPct(Math.max(...tpvRows.map(r=>r.tpvMs))), badgeLabel: 'MÁX'
+    }] : []),
+  ];
+
+  // Max TMP for gauge scale (cap at 24h)
+  const maxScale = Math.max(maxTmp, 3600000); // at least 1h scale
+
+  const renderCards = (container, cards) => {
+    container.innerHTML = cards.map((c, i) => {
+    // gauge pct: for time values use proportion of maxTmp, for counts use visual pct
+    let pct = c.pct !== undefined ? c.pct : 50;
+    // SVG arc: circumference=220, offset = 220 - (pct/100)*220
+    const offset = Math.round(220 - (pct / 100) * 220);
+    const badgeLabel = c.badgeLabel || '';
+    return `<div class="stat-card" style="--card-top:${c.accent};--card-color:${c.color};--gc:${c.accent}" data-offset="${offset}" data-bar="${pct}">
+      <div class="card-header">
+        <div class="card-label">${c.label}</div>
+        ${badgeLabel ? `<div class="card-badge">${badgeLabel}</div>` : ''}
+      </div>
+      <div class="card-body">
+        <div class="gauge-wrap">
+          <svg viewBox="0 0 72 72">
+            <circle class="gauge-track" cx="36" cy="36" r="28" stroke-dasharray="220" stroke-dashoffset="0" transform="rotate(-220 36 36)"/>
+            <circle class="gauge-fill" cx="36" cy="36" r="28" style="--gc:${c.accent}" data-offset="${offset}"/>
+          </svg>
+          <div class="gauge-icon">${c.icon}</div>
+        </div>
+        <div class="card-info">
+          <div class="card-value">${c.value}</div>
+          <div class="card-sub">${c.sub}</div>
+        </div>
+      </div>
+      <div class="card-bar-wrap"><div class="card-bar" data-pct="${pct}"></div></div>
+    </div>`;
+    }).join('');
+    // Animate gauges and bars
+    requestAnimationFrame(() => {
+      container.querySelectorAll('.gauge-fill').forEach(el => {
+        const offset = el.dataset.offset || 220;
+        setTimeout(() => { el.style.strokeDashoffset = offset; }, 100);
+      });
+      container.querySelectorAll('.card-bar').forEach(el => {
+        const pct = el.dataset.pct || 0;
+        setTimeout(() => { el.style.width = pct + '%'; }, 100);
+      });
+    });
+  };
+
+  renderCards(grid, cardsTMP);
+
+  // TPV cards
+  if (cardsTPV.length) {
+    gridTPV.style.display = '';
+    document.getElementById('tpvEmptyMsg').style.display = 'none';
+    renderCards(gridTPV, cardsTPV);
+  } else {
+    gridTPV.style.display = 'none';
+    document.getElementById('tpvEmptyMsg').style.display = '';
+  }
+}
+
+// ===================== TABLE: REGISTROS =====================
+function buildTableRegistros(rows) {
+  const data = rows || filteredRows;
+  currentPage = 1;
+  renderPageRegistros(data);
+}
+
+function renderPageRegistros(data) {
+  const tbody = document.getElementById('tbodyRegistros');
+  const start = (currentPage-1)*PAGE_SIZE;
+  const page = data.slice(start, start+PAGE_SIZE);
+
+  tbody.innerHTML = page.map(r => {
+    const cls = tmpClass(r.tmpMs);
+    const tpvCls = r.tpvMs !== null ? tmpClass(r.tpvMs) : '';
+    const tpvColor = tpvCls === 'veryslow' ? 'veryslow' : tpvCls === 'slow' ? 'slow' : '';
+    return `<tr>
+      <td class="dt-cell">${escHtml(r.dt)}</td>
+      <td>${escHtml(r.proc)}</td>
+      <td>${escHtml(r.transp || '—')}</td>
+      <td style="color:var(--text-soft)">${escHtml(r.operacao || '—')}</td>
+      <td>${fmtDate(r.dtReg)}</td>
+      <td>${fmtTime(r.dtReg)}</td>
+      <td>${fmtDate(r.dtLib)}</td>
+      <td>${fmtTime(r.dtLib)}</td>
+      <td class="tmp-cell ${cls}">${formatTMP(r.tmpMs, true)}</td>
+      <td class="tmp-cell ${tpvColor}">${r.tpvMs !== null ? formatTMP(r.tpvMs, true) + '<br><span style="font-size:0.62rem;opacity:0.6">' + r.tpvTipo + '</span>' : '—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--text-muted)">Nenhum resultado encontrado</td></tr>`;
+
+  buildPagination(data);
+}
+
+function buildPagination(data) {
+  const pg = document.getElementById('paginationReg');
+  const total = data.length;
+  const pages = Math.ceil(total/PAGE_SIZE);
+  if (pages <= 1) { pg.innerHTML = `<span>${total} registros</span>`; return; }
+
+  let btns = '';
+  for (let i=1; i<=Math.min(pages,7); i++) {
+    btns += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  if (pages > 7) btns += `<span style="padding:0 0.5rem;color:var(--text-muted)">…</span><button class="page-btn ${pages===currentPage?'active':''}" onclick="goPage(${pages})">${pages}</button>`;
+
+  pg.innerHTML = `
+    <span>${total} registros · Pág. ${currentPage}/${pages}</span>
+    <div class="page-btns">
+      <button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>
+      ${btns}
+      <button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>›</button>
+    </div>`;
+}
+
+window.goPage = function(p) {
+  currentPage = p;
+  renderPageRegistros(filteredRows);
+};
+
+// ===================== TABLE: DIARIO =====================
+function localDateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function buildTableDiario() {
+  const map = {};
+  processedRows.forEach(r => {
+    const dk = localDateKey(r.dtLib);
+    if (!map[dk]) map[dk] = { dk, vals: [] };
+    map[dk].vals.push(r.tmpMs);
+  });
+
+  const rows = Object.values(map).sort((a,b) => a.dk.localeCompare(b.dk));
+  const tbody = document.getElementById('tbodyDiario');
+  tbody.innerHTML = rows.map(r => {
+    const avg = r.vals.reduce((s,v)=>s+v,0)/r.vals.length;
+    const min = Math.min(...r.vals), max = Math.max(...r.vals);
+    const cls = tmpClass(avg);
+    const badgeCls = cls === 'veryslow' ? 'avg-slow' : cls === 'slow' ? 'avg-mid' : 'avg-fast';
+    const tpvValsD = processedRows.filter(r2 => localDateKey(r2.dtLib) === r.dk && r2.tpvMs !== null).map(r2 => r2.tpvMs);
+    const tpvAvgD = tpvValsD.length ? tpvValsD.reduce((s,v)=>s+v,0)/tpvValsD.length : null;
+    const tpvBadgeClsD = tpvAvgD !== null ? (tmpClass(tpvAvgD)==='veryslow'?'avg-slow':tmpClass(tpvAvgD)==='slow'?'avg-mid':'avg-fast') : '';
+    return `<tr>
+      <td>${fmtDateFromStr(r.dk)}</td>
+      <td>${r.vals.length}</td>
+      <td><span class="avg-badge ${badgeCls}">${formatTMP(avg, true)}</span></td>
+      <td>${formatTMP(min, true)}</td>
+      <td>${formatTMP(max, true)}</td>
+      <td>${tpvAvgD !== null ? `<span class="avg-badge ${tpvBadgeClsD}">${formatTMP(tpvAvgD, true)}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td style="color:var(--text-muted)">${tpvValsD.length}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Sem dados</td></tr>';
+}
+
+// ===================== TABLE: SEMANAL =====================
+function buildTableSemanal() {
+  const map = {};
+  processedRows.forEach(r => {
+    const wk = `${r.dtLib.getFullYear()}-W${String(getWeekNumber(r.dtLib)).padStart(2,'0')}`;
+    if (!map[wk]) map[wk] = { wk, vals: [] };
+    map[wk].vals.push(r.tmpMs);
+  });
+
+  const rows = Object.values(map).sort((a,b) => a.wk.localeCompare(b.wk));
+  const tbody = document.getElementById('tbodySemanal');
+  tbody.innerHTML = rows.map(r => {
+    const avg = r.vals.reduce((s,v)=>s+v,0)/r.vals.length;
+    const cls = tmpClass(avg);
+    const badgeCls = cls === 'veryslow' ? 'avg-slow' : cls === 'slow' ? 'avg-mid' : 'avg-fast';
+    // TPV for this week
+    const tpvVals = processedRows.filter(r2 => {
+      const wk2 = `${r2.dtLib.getFullYear()}-W${String(getWeekNumber(r2.dtLib)).padStart(2,'0')}`;
+      return wk2 === r.wk && r2.tpvMs !== null;
+    }).map(r2 => r2.tpvMs);
+    const tpvAvg = tpvVals.length ? tpvVals.reduce((s,v)=>s+v,0)/tpvVals.length : null;
+    const tpvBadgeCls = tpvAvg !== null ? (tmpClass(tpvAvg)==='veryslow'?'avg-slow':tmpClass(tpvAvg)==='slow'?'avg-mid':'avg-fast') : '';
+    return `<tr>
+      <td>Semana ${parseInt(r.wk.split("-W")[1])} do Ano ${r.wk.split("-W")[0]}</td>
+      <td>${r.vals.length}</td>
+      <td><span class="avg-badge ${badgeCls}">${formatTMP(avg, true)}</span></td>
+      <td>${tpvAvg !== null ? `<span class="avg-badge ${tpvBadgeCls}">${formatTMP(tpvAvg, true)}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td style="color:var(--text-muted)">${tpvVals.length}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">Sem dados</td></tr>';
+}
+
+// ===================== TABLE: MENSAL =====================
+function buildTableMensal() {
+  const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const map = {};
+  processedRows.forEach(r => {
+    const mk = `${r.dtLib.getFullYear()}-${String(r.dtLib.getMonth()+1).padStart(2,'0')}`;
+    if (!map[mk]) map[mk] = { mk, monthLabel: `${MONTHS[r.dtLib.getMonth()]} ${r.dtLib.getFullYear()}`, vals: [] };
+    map[mk].vals.push(r.tmpMs);
+  });
+
+  const rows = Object.values(map).sort((a,b) => a.mk.localeCompare(b.mk));
+  const tbody = document.getElementById('tbodyMensal');
+  tbody.innerHTML = rows.map(r => {
+    const avg = r.vals.reduce((s,v)=>s+v,0)/r.vals.length;
+    const cls = tmpClass(avg);
+    const badgeCls = cls === 'veryslow' ? 'avg-slow' : cls === 'slow' ? 'avg-mid' : 'avg-fast';
+    // TPV for this month
+    const tpvValsM = processedRows.filter(r2 => {
+      const mk2 = `${r2.dtLib.getFullYear()}-${String(r2.dtLib.getMonth()+1).padStart(2,'0')}`;
+      return mk2 === r.mk && r2.tpvMs !== null;
+    }).map(r2 => r2.tpvMs);
+    const tpvAvgM = tpvValsM.length ? tpvValsM.reduce((s,v)=>s+v,0)/tpvValsM.length : null;
+    const tpvBadgeClsM = tpvAvgM !== null ? (tmpClass(tpvAvgM)==='veryslow'?'avg-slow':tmpClass(tpvAvgM)==='slow'?'avg-mid':'avg-fast') : '';
+    return `<tr>
+      <td>${r.monthLabel}</td>
+      <td>${r.vals.length}</td>
+      <td><span class="avg-badge ${badgeCls}">${formatTMP(avg, true)}</span></td>
+      <td>${tpvAvgM !== null ? `<span class="avg-badge ${tpvBadgeClsM}">${formatTMP(tpvAvgM, true)}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+      <td style="color:var(--text-muted)">${tpvValsM.length}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted)">Sem dados</td></tr>';
+}
+
+// ===================== SEARCH =====================
+function applyFilters() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const from = document.getElementById('filterDateFrom').value; // YYYY-MM-DD
+  const to   = document.getElementById('filterDateTo').value;
+
+  filteredRows = processedRows.filter(r => {
+    // Text filter
+    if (q && !r.dt.toLowerCase().includes(q) && !r.proc.toLowerCase().includes(q) && !(r.transp||'').toLowerCase().includes(q)) return false;
+    // Date filter (based on Data Veículo Liberado)
+    const dk = localDateKey(r.dtLib); // YYYY-MM-DD
+    if (from && dk < from) return false;
+    if (to   && dk > to)   return false;
+    return true;
+  });
+
+  currentPage = 1;
+  renderPageRegistros(filteredRows);
+}
+
+function clearDateFilter() {
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value = '';
+  applyFilters();
+}
+
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+// ===================== TABS =====================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.table-section').forEach(s => s.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById(this.dataset.tab).classList.add('active');
+  });
+});
+
+// ===================== SORT =====================
+window.sortTable = function(tableId, colIdx) {
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const key = `${tableId}_${colIdx}`;
+  sortDir[key] = !sortDir[key];
+  rows.sort((a,b) => {
+    const av = a.cells[colIdx]?.innerText || '';
+    const bv = b.cells[colIdx]?.innerText || '';
+    const an = parseFloat(av.replace(/[^\d.]/g,''));
+    const bn = parseFloat(bv.replace(/[^\d.]/g,''));
+    if (!isNaN(an) && !isNaN(bn)) return sortDir[key] ? an-bn : bn-an;
+    return sortDir[key] ? av.localeCompare(bv,'pt') : bv.localeCompare(av,'pt');
+  });
+  rows.forEach(r => tbody.appendChild(r));
+};
+
+// ===================== EXPORT =====================
+function exportarRegistros() {
+  if (!filteredRows.length) { alert('Nenhum dado para exportar.'); return; }
+
+  const wsData = [
+    ['DT', 'N° Processo', 'Transportadora', 'Operação', 'Data Registrado', 'Hora Registrado', 'Data Liberado', 'Hora Liberado', 'TMP (min)', 'TMP (formatado)', 'Tipo TPV', 'TPV (min)', 'TPV (formatado)']
+  ];
+
+  filteredRows.forEach(r => {
+    const tmpMin = Math.floor(r.tmpMs / 60000);
+    const tpvMin = r.tpvMs !== null ? Math.floor(r.tpvMs / 60000) : '';
+    wsData.push([
+      r.dt,
+      r.proc,
+      r.transp || '—',
+      r.operacao || '—',
+      fmtDate(r.dtReg),
+      fmtTime(r.dtReg),
+      fmtDate(r.dtLib),
+      fmtTime(r.dtLib),
+      tmpMin,
+      formatTMP(r.tmpMs, true),
+      r.tpvTipo || '—',
+      tpvMin,
+      r.tpvMs !== null ? formatTMP(r.tpvMs, true) : '—'
+    ]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Larguras das colunas
+  ws['!cols'] = [
+    {wch:18},{wch:18},{wch:28},{wch:16},{wch:16},{wch:14},{wch:16},{wch:14},{wch:12},{wch:16},{wch:14},{wch:12},{wch:16}
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Registros TMP');
+
+  const hoje = new Date();
+  const nomeArq = `TMP_Registros_${hoje.getFullYear()}${String(hoje.getMonth()+1).padStart(2,'0')}${String(hoje.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, nomeArq);
+}
+
+// ===================== RESET =====================
+function resetSite() {
+  // Clear data
+  allRows = [];
+  processedRows = [];
+  filteredRows = [];
+  currentPage = 1;
+  sortDir = {};
+  headers = [];
+  rawData = [];
+  loadedFiles = [];
+  document.getElementById('fileList').classList.remove('visible');
+  document.getElementById('fileList').innerHTML = '';
+
+  // Hide results and status
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('statusBar').classList.remove('visible');
+  document.getElementById('mappingSection').classList.remove('visible');
+  document.getElementById('btnReset').style.display = 'none';
+
+  // Reset upload zone
+  document.getElementById('fileInput').value = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value = '';
+
+  // Reset tabs
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  document.querySelectorAll('.table-section').forEach((s,i) => s.classList.toggle('active', i===0));
+
+  // Clear table bodies and cards
+  ['tbodyRegistros','tbodyDiario','tbodySemanal','tbodyMensal'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  document.getElementById('cardsGridTMP').innerHTML = '';
+  document.getElementById('cardsGridTPV').innerHTML = '';
+  document.getElementById('cardsGridTPV').style.display = 'none';
+  document.getElementById('tpvEmptyMsg').style.display = 'none';
+  document.getElementById('paginationReg').innerHTML = '';
+
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ===================== THEME =====================
+function toggleTheme() {
+  const html = document.documentElement;
+  const btn = document.getElementById('themeBtn');
+  if (html.dataset.theme === 'dark') {
+    html.dataset.theme = 'light';
+    btn.textContent = '☀️ Claro';
+  } else {
+    html.dataset.theme = 'dark';
+    btn.textContent = '🌙 Escuro';
+  }
+}
+
+// ===================== LIVE CLOCK =====================
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  const el = document.getElementById('liveClock');
+  if (el) el.textContent = `${h}:${m}:${s}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ===================== INDICADORES =====================
+function buildIndicadores() {
+  const el = document.getElementById('indicadores-content');
+  if (!processedRows.length) { el.innerHTML = ''; return; }
+
+  // ── Top 3 DTs ofensoras (maior TMP médio) ──
+  const dtMap = {};
+  processedRows.forEach(r => {
+    const key = r.dt || '—';
+    if (!dtMap[key]) dtMap[key] = { dt: key, transp: r.transp || '—', vals: [] };
+    else if (r.transp && !dtMap[key].transp) dtMap[key].transp = r.transp;
+    dtMap[key].vals.push(r.tmpMs);
+  });
+  const dtRanking = Object.values(dtMap)
+    .map(d => ({ ...d, avg: d.vals.reduce((s,v)=>s+v,0)/d.vals.length }))
+    .sort((a,b) => b.avg - a.avg)
+    .slice(0, 3);
+
+  const medals = ['gold','silver','bronze'];
+  const tmpColorClass = ms => { const h=ms/3600000; return h>=24?'red':h>=6?'yellow':'green'; };
+
+  const top3Html = dtRanking.map((d,i) => `
+    <div class="rank-row">
+      <div class="rank-num ${medals[i]}">${['🥇','🥈','🥉'][i]}</div>
+      <div class="rank-info">
+        <div class="rank-name">${escHtml(d.dt)}</div>
+        <div class="rank-sub">${escHtml(d.transp)} · ${d.vals.length} registro${d.vals.length!==1?'s':''}</div>
+      </div>
+      <div class="rank-tmp ${tmpColorClass(d.avg)}">${formatTMP(d.avg, true)}</div>
+    </div>`).join('') || '<div style="padding:1.2rem;color:var(--text-muted);font-size:0.8rem;text-align:center">Sem dados de DT</div>';
+
+  // ── Melhor e pior dia ──
+  const dayMap = {};
+  processedRows.forEach(r => {
+    const dk = localDateKey(r.dtLib);
+    if (!dayMap[dk]) dayMap[dk] = { dk, vals: [] };
+    dayMap[dk].vals.push(r.tmpMs);
+  });
+  const dayAvgs = Object.values(dayMap).map(d => ({ dk: d.dk, avg: d.vals.reduce((s,v)=>s+v,0)/d.vals.length, count: d.vals.length }));
+  const bestDay  = dayAvgs.reduce((a,b) => a.avg < b.avg ? a : b, dayAvgs[0]);
+  const worstDay = dayAvgs.reduce((a,b) => a.avg > b.avg ? a : b, dayAvgs[0]);
+
+  // ── Transportadora mais assídua ──
+  const transpMap = {};
+  processedRows.forEach(r => {
+    const t = r.transp && r.transp !== '—' ? r.transp : null;
+    if (!t) return;
+    if (!transpMap[t]) transpMap[t] = { name: t, count: 0, totalMs: 0 };
+    transpMap[t].count++;
+    transpMap[t].totalMs += r.tmpMs;
+  });
+  const transpRanking = Object.values(transpMap).sort((a,b) => b.count - a.count).slice(0,3);
+
+  const transpHtml = transpRanking.length ? transpRanking.map((t,i) => `
+    <div class="rank-row">
+      <div class="rank-num ${medals[i]}">${['🥇','🥈','🥉'][i]}</div>
+      <div class="rank-info">
+        <div class="rank-name">${escHtml(t.name)}</div>
+        <div class="rank-sub">TMP médio: ${formatTMP(t.totalMs/t.count, true)}</div>
+      </div>
+      <div class="rank-tmp">${t.count} reg.</div>
+    </div>`).join('')
+    : '<div style="padding:1.2rem;color:var(--text-muted);font-size:0.8rem;text-align:center">Mapeie a coluna "Nome Transportadora"</div>';
+
+  el.innerHTML = `<div class="ind-grid">
+
+    <!-- Top 3 DTs ofensoras -->
+    <div class="ind-card">
+      <div class="ind-card-header">
+        <div class="ind-icon">⚠️</div>
+        <h3>Top 3 DTs Ofensoras</h3>
+      </div>
+      <div class="ind-card-body">${top3Html}</div>
+    </div>
+
+    <!-- Melhor e pior dia -->
+    <div class="ind-card">
+      <div class="ind-card-header">
+        <div class="ind-icon">📅</div>
+        <h3>Melhor &amp; Pior Dia</h3>
+      </div>
+      <div class="ind-card-body">
+        <div class="rank-row">
+          <div class="rank-num">🟢</div>
+          <div class="rank-info">
+            <div class="rank-name">Melhor dia</div>
+            <div class="rank-sub">${fmtDateFromStr(bestDay.dk)} · ${bestDay.count} registro${bestDay.count!==1?'s':''}</div>
+          </div>
+          <div class="rank-tmp green">${formatTMP(bestDay.avg, true)}</div>
+        </div>
+        <div class="rank-row">
+          <div class="rank-num">🔴</div>
+          <div class="rank-info">
+            <div class="rank-name">Pior dia</div>
+            <div class="rank-sub">${fmtDateFromStr(worstDay.dk)} · ${worstDay.count} registro${worstDay.count!==1?'s':''}</div>
+          </div>
+          <div class="rank-tmp red">${formatTMP(worstDay.avg, true)}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transportadora mais assídua -->
+    <div class="ind-card">
+      <div class="ind-card-header">
+        <div class="ind-icon">🚛</div>
+        <h3>Transportadoras mais Assíduas</h3>
+      </div>
+      <div class="ind-card-body">${transpHtml}</div>
+    </div>
+
+  </div>`;
+}
+
+// ===================== EXPORT DIARIO =====================
+function exportarDiario() {
+  if (!processedRows.length) { alert('Nenhum dado para exportar.'); return; }
+
+  // Rebuild diario data (same logic as buildTableDiario)
+  const map = {};
+  processedRows.forEach(r => {
+    const dk = localDateKey(r.dtLib);
+    if (!map[dk]) map[dk] = { dk, vals: [], tpvVals: [] };
+    map[dk].vals.push(r.tmpMs);
+    if (r.tpvMs !== null) map[dk].tpvVals.push(r.tpvMs);
+  });
+
+  const rows = Object.values(map).sort((a,b) => a.dk.localeCompare(b.dk));
+  const hasTpv = rows.some(r => r.tpvVals.length > 0);
+
+  const headers = ['Data', 'Qtd. Registros', 'TMP Médio', 'TMP Mín.', 'TMP Máx.'];
+  if (hasTpv) headers.push('TPV Médio', 'Reg. c/ TPV');
+
+  const wsData = [headers];
+  rows.forEach(r => {
+    const avg = r.vals.reduce((s,v)=>s+v,0)/r.vals.length;
+    const min = Math.min(...r.vals);
+    const max = Math.max(...r.vals);
+    const tpvAvg = r.tpvVals.length ? r.tpvVals.reduce((s,v)=>s+v,0)/r.tpvVals.length : null;
+    const row = [
+      fmtDateFromStr(r.dk),
+      r.vals.length,
+      formatTMP(avg, true),
+      formatTMP(min, true),
+      formatTMP(max, true),
+    ];
+    if (hasTpv) row.push(tpvAvg !== null ? formatTMP(tpvAvg, true) : '—', r.tpvVals.length);
+    wsData.push(row);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [
+    {wch:14},{wch:16},{wch:14},{wch:14},{wch:14},
+    ...(hasTpv ? [{wch:14},{wch:14}] : [])
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Média Diária');
+  const hoje = new Date();
+  const nome = `Chialculator_Diario_${hoje.getFullYear()}${String(hoje.getMonth()+1).padStart(2,'0')}${String(hoje.getDate()).padStart(2,'0')}.xlsx`;
+  XLSX.writeFile(wb, nome);
+}
+
+// ===================== HELPERS =====================
+function fmtDate(d) { return d ? `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` : '—'; }
+function fmtTime(d) { return d ? `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '—'; }
+function fmtDateFromStr(s) { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function showLoading(v) { document.getElementById('loading').classList.toggle('visible', v); }
+function showStatus(msg) {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg;
+  bar.classList.add('visible');
+}
+</script>
+<footer>
+  <span>⏱️ Ferramenta desenvolvida por</span>
+  <span class="dev-name">Vinícius Chiapetta Portella Magalhães</span>
+</footer>
+</body>
+</html>
